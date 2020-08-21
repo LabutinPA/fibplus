@@ -1748,7 +1748,7 @@ end;
 function  TFIBStringField.IsDBKey:boolean;
 begin
   with TFIBDataSet(DataSet) do
-  if (FieldKind=fkData) and Assigned(vFieldDescrList) and (vFieldDescrList.Capacity>0) then
+  if (FieldKind=fkData) and Assigned(vFieldDescrList) and (vFieldDescrList.List.Count>0) then
   begin
    Result:=vFieldDescrList[FieldNo-1]^.fdIsDBKey;
   end
@@ -2728,7 +2728,7 @@ begin
     Exit;
   end;
   D := TFIBDataSet(DataSet);
-  if D.vFieldDescrList.Capacity = 0 then
+  if D.vFieldDescrList.List.Count = 0 then
   begin
     Result := inherited GetDataSize; // SizeOf( WordBool )
     Exit;
@@ -5064,6 +5064,7 @@ begin
   qda:=QSelect.Current;
   (* Load up the fields *)
   c:=qda.Count - 1;
+  vFieldDescrList.Clear;
   vFieldDescrList.Capacity:=C+1;
   vrdFieldCount           :=vFieldDescrList.Capacity;
 
@@ -6934,7 +6935,7 @@ begin
  else
  begin
     tf:=FBN(aFieldName);
-    if Assigned(tf) and (tf.FieldKind=fkData) and (vFieldDescrList.Capacity>tf.FieldNo) then
+    if Assigned(tf) and (tf.FieldKind=fkData) and (tf.FieldNo < vFieldDescrList.List.Count) then
     begin
      fi:=vFieldDescrList[tf.FieldNo-1];
      Result:=fi^.fdTableAlias
@@ -10684,7 +10685,7 @@ var
    i:integer;
 begin
  FillChar(Buffer[0],FRecordBufferSize,#0);
- for i:=1 to vFieldDescrList.Capacity do
+ for i:=1 to vFieldDescrList.List.Count do
   PRecordData(Buffer)^.rdFields[i].fdIsNull:=True;
 end;
 
@@ -11077,7 +11078,7 @@ begin
      FRecordsCache.CreateNewBlock;
      FRecordsCache.SaveChangeLog:=FCachedUpdates;
      j:=1;
-     for i:=0 to Pred(vFieldDescrList.Capacity) do
+     for i:=0 to Pred(vFieldDescrList.List.Count) do
      if vFieldDescrList[i].fdIsSeparateString then
      begin
       FRecordsCache.SetStrOffset(j,vFieldDescrList[i].fdDataOfs-DiffSizesRecData,vFieldDescrList[i].fdDataSize);

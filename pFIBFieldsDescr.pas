@@ -102,6 +102,7 @@ var i:integer;
 begin
  if Source=Self then exit;
  Clear;
+ vFieldInfoList.Count := Source.vFieldInfoList.Count;
  vFieldInfoList.Capacity:=Source.vFieldInfoList.Capacity;
  for i:=0 to Pred(Source.vFieldInfoList.Count) do
  with Source.FieldInfo[i]^ do
