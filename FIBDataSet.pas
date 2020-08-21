@@ -644,7 +644,6 @@ type
     FBeforeEndUpdTr  :TEndTrEvent  ;
     FAfterEndUpdTr   :TEndTrEvent  ;
 
-    FUpdatesPending: Boolean;
     FUpdateRecordTypes: TFIBUpdateRecordTypes;
     FUniDirectional: Boolean;
     FOnGetRecordError:  TDataSetErrorEvent;
@@ -803,6 +802,7 @@ type
     function GetRefreshSQL: TStrings;
     function GetSelectSQL: TStrings;
     function GetStatementType: TFIBSQLTypes;
+    function GetUpdatesPending: Boolean;
     function GetUpdateSQL: TStrings;
     function GetTransaction: TFIBTransaction;
     function GetTRHandle: PISC_TR_HANDLE;
@@ -1028,7 +1028,7 @@ type
     property QSelect: TFIBQuery read FQSelect;
     property QUpdate: TFIBQuery read FQUpdate;
     property StatementType: TFIBSQLTypes read GetStatementType;
-    property UpdatesPending: Boolean read FUpdatesPending;
+    property UpdatesPending: Boolean read GetUpdatesPending;
 
     property BufferChunks: Integer read GetBufferChunks write SetBufferChunks;
 
@@ -3590,10 +3590,11 @@ end;
 
 procedure TFIBDataLink.CheckBrowseMode;
 begin
-  if FDataSet.Active then
-  begin
-     FDataSet.CheckBrowseMode;
-  end;
+  // LPA
+  // if FDataSet.Active then
+  // begin
+  //   FDataSet.CheckBrowseMode;
+  // end;
 end;
 
 procedure TFIBDataLink.RecordChanged(Field: TField);
@@ -3754,6 +3755,9 @@ begin
   FreeMem(vPartition);
   FFilteredCacheInfo.NonVisibleRecords.Free;
 end;
+
+
+
 
 procedure   TFIBCustomDataSet.Loaded;
 begin
@@ -4560,12 +4564,11 @@ begin
  try
    if State in [dsEdit, dsInsert] then
     Cancel;
-   if not FUpdatesPending or not FCachedUpdates then
+   if not UpdatesPending or not FCachedUpdates then
     Exit;
    for i:=0 to Pred(FRecordCount) do
     InternalRevertRecord(i,False);
    FCountUpdatesPending:=0;
-   FUpdatesPending:=False;
    RefreshFilters;
    if Assigned(FRecordsCache) then
     FRecordsCache.ClearLog;
@@ -5257,6 +5260,11 @@ begin
   Result := FQSelect.SQLType;
 end;
 
+function TFIBCustomDataSet.GetUpdatesPending: Boolean;
+begin
+  Result := FCountUpdatesPending > 0;
+end;
+
 function TFIBCustomDataSet.GetUpdateSQL: TStrings;
 begin
   Result := FQUpdate.SQL;
@@ -5884,7 +5892,6 @@ begin
      Resync([]);
     end;
     Dec(FCountUpdatesPending);
-    FUpdatesPending:=FCountUpdatesPending>0
   end;
 end;
 
@@ -9967,7 +9974,6 @@ begin
         WriteRecordCache(PRecordData(Buff)^.rdRecordNumber, Buff);
       end;
       Inc(FDeletedRecords);
-      FUpdatesPending := FCountUpdatesPending>0;
     end
     else
       FIBError(feCannotDelete, [CmpFullName(Self)]);
@@ -10969,7 +10975,7 @@ begin
   end;
   ChangeScreenCursor(iCurScreenState);
  try
-    FUpdatesPending := False;
+    FCountUpdatesPending := 0;
     if FQSelect.MacroChanged then
      SQLChanging(QSelect);
     if not FPrepared or not FQSelect.Prepared then
@@ -11219,7 +11225,9 @@ begin
        FRecordsCache.Insert(FCurrentRecord);
       end;
       WriteRecordCache(PRecordData(Buff)^.rdRecordNumber, Buff);
-      FUpdatesPending := not (drsInCacheRefresh in FRunState);
+      // Pavel Labutin: cache can be modified before InCacheRefresh
+//      FUpdatesPending := not (drsInCacheRefresh in FRunState);
+      Inc(FCountUpdatesPending);
     end;
     if bInserting then
     begin
