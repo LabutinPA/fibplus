@@ -1793,7 +1793,6 @@ begin
         WriteRecordCache(i, Buff);
       end;
     end;
-    FUpdatesPending := False;
     FCountUpdatesPending := 0;
   finally
     FreeRecordBuffer(Buff);
@@ -1824,7 +1823,7 @@ var
   UpdateAction: TFIBUpdateAction;
   cus: TCachedUpdateStatus;
   vResume:Boolean;
-  bRecordsSkipped:boolean;
+  RecordsSkipped:Integer;
   RecordsInExecBlock:array of Integer;
   SQL:WideString;
 procedure SaveFlagsForRecordsInExecBlock;
@@ -1878,7 +1877,7 @@ begin
               case UpdateAction of
                 uaFail: raise;
                 uaAbort: raise EAbort.Create(E.Message);
-                uaSkip:  bRecordsSkipped := True;
+                uaSkip:  Inc(RecordsSkipped);
               end;
             end;
       end;
@@ -1899,7 +1898,7 @@ begin
   AutoStartUpdateTransaction;
   Buff := AllocRecordBuffer;
   try
-    bRecordsSkipped:=False;
+    RecordsSkipped := 0;
     for i := 0 to Pred(FRecordCount) do
     begin
       ReadRecordCache(i, Buff, False);
@@ -1909,7 +1908,8 @@ begin
         then
           Continue;
         cus := TCachedUpdateStatus(rdFlags and 7);
-        FUpdatesPending := True;
+        // LPA
+        Inc(FCountUpdatesPending);
         case TCachedUpdateStatus(rdFlags and 7) of
           cusModified:
             UpdateKind := ukModify;
@@ -1954,7 +1954,7 @@ begin
                   Format(SFIBErrorAbortUpdates, [iifStr(Self.Owner <> nil,
                     Self.Owner.Name + '.', ''), Self.Name])
                   );
-              uaSkip: bRecordsSkipped:=True
+              uaSkip: Inc(RecordsSkipped);
             end;
           end;
         end;
@@ -2034,7 +2034,7 @@ begin
               case UpdateAction of
                 uaFail: raise;
                 uaAbort: raise EAbort.Create(E.Message);
-                uaSkip:  bRecordsSkipped := True;
+                uaSkip: Inc(RecordsSkipped);
               end;
             end;
           end;
@@ -2068,7 +2068,7 @@ begin
               case UpdateAction of
                 uaFail: raise;
                 uaAbort: raise EAbort.Create(E.Message);
-                uaSkip:  bRecordsSkipped := True;
+                uaSkip: Inc(RecordsSkipped);
               end;
             end;
       end;
@@ -2077,8 +2077,8 @@ begin
       SaveFlagsForRecordsInExecBlock
     end;
 
-    FUpdatesPending := bRecordsSkipped;
-    if not FUpdatesPending then
+    FCountUpdatesPending := RecordsSkipped;
+    if not UpdatesPending then
       AutoCommitUpdateTransaction;
 
   finally
@@ -2368,7 +2368,7 @@ begin
         FAutoUpdateOptions.Modified:=False
       end;
 
-  FUpdatesPending := False;
+  FCountUpdatesPending := 0;
 
   //
   if (GlobalContainer<>nil) and (FContainer<>GlobalContainer) then
